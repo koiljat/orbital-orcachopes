@@ -20,3 +20,7 @@ book_handler = CommandHandler('book', book)
 dispatcher.add_handler(book_handler)
 
 updater.start_polling()
+
+import mysql.connector
+
+
