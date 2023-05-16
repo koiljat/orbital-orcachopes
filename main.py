@@ -28,5 +28,5 @@ connection = mysql.connector.connect(
     port=3306,  
     user="root",
     password="Nerfcs45&",
-    database="Orbital Datab"
+    database="Orbital Database"
 )
