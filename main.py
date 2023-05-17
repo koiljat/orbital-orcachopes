@@ -96,8 +96,8 @@ def confirm_booking(query, context):
     user_id = query.from_user.id
     username = query.from_user.username
 
-    input = "INSERT INTO bookings (facilitiy_id, user_name, booking_date, start_time, end_time) VALUES (%s, %s, %s, %s, %s)"
-    values = (1, 1, 1, 1, 1)
+    input = "INSERT INTO bookings (facility_id, user_name, booking_date, start_time, end_time) VALUES (%s, %s, %s, %s, %s)"
+    values = (1, 1, "110111", 1, 1)
     cursor.execute(input, values)
     conn.commit()
 
