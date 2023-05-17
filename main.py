@@ -1,22 +1,22 @@
 import telegram
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, JobQueue
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import mysql.connector
+
+TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS  4nRe31xyI'
 
 conn = mysql.connector.connect(
     host="localhost",
     user="root",
     password="Password1!",
     database="facility_booking"
-)
+    )
+    
 cursor = conn.cursor()
-
-TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS4nRe31xyI'
 
 def main():
     bot = telegram.Bot(token=TOKEN)
-    updater = Updater(token=TOKEN, use_context=True)
-
+    updater = Dispatcher(bot=bot, update_queue=JobQueue())
     dispatcher = updater.dispatcher
     start_handler = CommandHandler('start', start)
     button_handler = CallbackQueryHandler(button)
@@ -88,6 +88,10 @@ def show_timing_options(query, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
     context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="Select your timing", reply_markup=reply_markup)
 
+def update_bookings_table(facility, timing, username):
+    #TODO: Key in data into database
+    pass
+
 def confirm_booking(query, context):
     confirm_text = "Booking confirmed!\nBookingId: 0001\nFacility: Pool Table\nTime: 7:00 to 7:30\n"
 
@@ -95,9 +99,10 @@ def confirm_booking(query, context):
     timing = "Session 1"
     user_id = query.from_user.id
     username = query.from_user.username
-
+    #TODO: Collect session id and fetch facilitiy name
+    #TODO: Add another function for confirmation
     input = "INSERT INTO bookings (facility_id, user_name, booking_date, start_time, end_time) VALUES (%s, %s, %s, %s, %s)"
-    values = (1, 1, "110111", 1, 1)
+    values = (1, username, "110111", 1, 1)
     cursor.execute(input, values)
     conn.commit()
 
@@ -108,6 +113,7 @@ def confirm_booking(query, context):
     context.bot.send_message(chat_id=query.message.chat_id, text="Would you like to set a reminder?", reply_markup=reply_markup)
 
 def set_reminder(query, context):
+    #TODO: Add working function.
     context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="A reminder will be sent to you 15 minutes before the start time.")
 
 main()
