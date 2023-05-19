@@ -92,25 +92,21 @@ def update_bookings_table(facility, timing, username):
     #TODO: Key in data into database
     pass
 
-def confirm_booking(query, context):
-    confirm_text = "Booking confirmed!\nBookingId: 0001\nFacility: Pool Table\nTime: 7:00 to 7:30\n"
-
-    facility = query.data
-    timing = "Session 1"
-    user_id = query.from_user.id
-    username = query.from_user.username
-    #TODO: Collect session id and fetch facilitiy name
-    #TODO: Add another function for confirmation
-    input = "INSERT INTO bookings (facility_id, user_name, booking_date, start_time, end_time) VALUES (%s, %s, %s, %s, %s)"
-    values = (1, username, "110111", 1, 1)
-    cursor.execute(input, values)
-    conn.commit()
-
-    context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text=confirm_text)
-    keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Reminder'),
-                 InlineKeyboardButton("No", callback_data='Reject Reminder')]]
+def verify_choice(query, context):
+    timing_selected = query.data
+    response_text = f"{timing_selected} selected \nConfirm booking?"
+    keyboard = [[InlineKeyboardButton("Yes", callback_data='Confirm Booking'),
+                 InlineKeyboardButton("No", callback_data='Abort Booking')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(chat_id=query.message.chat_id, text="Would you like to set a reminder?", reply_markup=reply_markup)
+    context.bot.send_message(chat_id=query.message.chat_id, text=response_text, reply_markup=reply_markup)
+
+def confirm_booking(query, context):
+    timing_selected = query.data
+    response_text = f"{timing_selected} selected \nConfirm booking?"
+    keyboard = [[InlineKeyboardButton("Yes", callback_data='Confirm Booking'),
+                 InlineKeyboardButton("No", callback_data='Abort Booking')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.send_message(chat_id=query.message.chat_id, text=response_text, reply_markup=reply_markup)
 
 def set_reminder(query, context):
     #TODO: Add working function.
