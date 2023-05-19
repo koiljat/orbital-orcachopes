@@ -3,7 +3,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, JobQueue
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import mysql.connector
 
-TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS  4nRe31xyI'
+TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS4nRe31xyI'
 
 conn = mysql.connector.connect(
     host="localhost",
@@ -16,7 +16,7 @@ cursor = conn.cursor()
 
 def main():
     bot = telegram.Bot(token=TOKEN)
-    updater = Dispatcher(bot=bot, update_queue=JobQueue())
+    updater = Updater(TOKEN, use_context=True)
     dispatcher = updater.dispatcher
     start_handler = CommandHandler('start', start)
     button_handler = CallbackQueryHandler(button)
