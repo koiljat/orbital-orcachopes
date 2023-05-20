@@ -1,4 +1,4 @@
-import telegram
+import telegram 
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, JobQueue
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import mysql.connector
@@ -8,7 +8,7 @@ TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS4nRe31xyI'
 conn = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="Password1!",
+    password="Nerfcs45&",
     database="facility_booking"
     )
     
@@ -90,7 +90,13 @@ def show_timing_options(query, context):
 
 def update_bookings_table(facility, timing, username):
     #TODO: Key in data into database
-    pass
+    query= "INSERT INTO quick_bookings (facility_id, user_name, timing) VALUES (%s, %s, %s)"
+    values= (query.data[facility], username, query.data[timing])
+    cursor.execute(query, values)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
 
 def verify_choice(query, context):
     timing_selected = query.data
@@ -106,6 +112,11 @@ def confirm_booking(query, context):
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Confirm Booking'),
                  InlineKeyboardButton("No", callback_data='Abort Booking')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    if query.data== 'Confirm Booking':
+        facility=query.data
+        username=query.user_id
+        timing=timing_selected
+        update_bookings_table(facility, timing, username)
     context.bot.send_message(chat_id=query.message.chat_id, text=response_text, reply_markup=reply_markup)
 
 def set_reminder(query, context):
