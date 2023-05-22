@@ -144,7 +144,7 @@ def confirm_booking(query, context):
     start_time = get_session_info(timing_selected)[0]
     end_time = get_session_info(timing_selected)[1]
     context.chat_data['timing_selected'] = timing_selected
-    response_text = f"{timing_selected} selected \nStart: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
+    response_text = f"{timing_selected} selected \nStart Time: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),
                  InlineKeyboardButton("No", callback_data='Abort Booking')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
