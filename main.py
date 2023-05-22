@@ -91,16 +91,20 @@ def show_timing_options(query, context):
     selected_facility = query.data
     context.chat_data['selected_facility'] = selected_facility
     
-    #TODO: Query for MySQL to filter out the booked slots. start_time should be no earlier than current_time. change time to 12h format
+    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
     timing_options = []
-    start_time = 7
-    end_time = 12
+    start_time = 7 if curr_time < 7 else curr_time
+    end_time = 23
     current = start_time
-    session = 1
     
+    booked_slots = get_booked_slots(context.chat_data['selected_facility'])
     while current <= end_time:
-        timing_options.append([InlineKeyboardButton(f"{current} to {current+1}", callback_data=f"Session {session}")])
-        session += 1
+        if current in booked_slots:
+            current += 1
+            continue
+        from_time = f'{current} AM' if current < 12 else ('12 PM' if current == 12 else f'{current - 12} PM')
+        to_time = f'{current+1} AM' if current+1 < 12 else ('12 PM' if current+1 == 12 else f'{current+1 - 12} PM')
+        timing_options.append([InlineKeyboardButton(f"{from_time} to {to_time}", callback_data=f"Session {current - 6}")])
         current += 1
     
     keyboard = timing_options
@@ -114,10 +118,33 @@ def show_timing_options(query, context):
         reply_markup=reply_markup
     )
 
+def get_booked_slots(facility_selected):
+    try:
+        conn = mysql.connector.connect(
+            host="localhost", 
+            user="root",
+            password="Password1!",
+            database="ORCAChopes"
+            )
+        output = []
+        if conn.is_connected():
+            cursor = conn.cursor()
+            cursor.execute("SELECT start_time FROM Bookings WHERE facility_name = %s", (facility_selected,))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                output.append(int(row[0].total_seconds() // 3600))
+        return output
+
+    except Error as e:
+        print(f"Error inserting booking: {e}")
+
 def confirm_booking(query, context):
     timing_selected = query.data
+    start_time = get_session_info(timing_selected)[0]
+    end_time = get_session_info(timing_selected)[1]
     context.chat_data['timing_selected'] = timing_selected
-    response_text = f"{timing_selected} selected \nConfirm booking?"
+    response_text = f"{timing_selected} selected \nStart: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),
                  InlineKeyboardButton("No", callback_data='Abort Booking')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -163,7 +190,7 @@ def insert_booking(booking_data):
         print(f"Error inserting booking: {e}")
 
 def get_session_info(session):
-    hour = int(session[8:]) + 7
+    hour = int(session[8:]) + 6
     return (time(hour=hour), time(hour=hour+1))
 
 def accept_booking(query, context):
