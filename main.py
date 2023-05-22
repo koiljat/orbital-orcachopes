@@ -5,7 +5,7 @@ import mysql.connector
 from mysql.connector import Error
 import logging
 import pytz
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
@@ -144,6 +144,7 @@ def insert_booking(booking_data):
             reminder = booking_data['reminder']
             firstname = booking_data['firstname']
             lastname = booking_data['lastname']
+            date = booking_data['date']
 
             cursor.execute("SELECT username FROM Users WHERE username = %s", (username,))
             user_exists = cursor.fetchone()
@@ -151,9 +152,9 @@ def insert_booking(booking_data):
             if not user_exists:
                 cursor.execute("INSERT INTO Users (username, first_name, last_name) VALUES (%s, %s, %s)", (username, firstname, lastname))
 
-            insert_query = """INSERT INTO Bookings (facility_name, username, datetime, start_time, end_time, cancelled, reminder)
-                              VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-            cursor.execute(insert_query, (facility_name, username, datetime, start_time, end_time, cancelled, reminder))
+            insert_query = """INSERT INTO Bookings (facility_name, username, datetime, date, start_time, end_time, cancelled, reminder)
+                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+            cursor.execute(insert_query, (facility_name, username, datetime, date, start_time, end_time, cancelled, reminder))
             conn.commit()
 
             print("Booking inserted successfully!")
@@ -176,6 +177,7 @@ def accept_booking(query, context):
     'firstname': query.from_user.first_name,
     'lastname': query.from_user.last_name,
     'datetime': datetime.now(pytz.timezone('Asia/Singapore')),
+    'date': date.today(),
     'start_time': start_time,
     'end_time': end_time,
     'cancelled': False,
