@@ -1,16 +1,15 @@
-import telegram
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+from datetime import date, datetime, time
 import mysql.connector
 from mysql.connector import Error
-import logging
 import pytz
-from datetime import date, datetime, time
+import telegram
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from config import TOKEN
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
-
-TOKEN = '6183521726:AAGqHZywmdqCp6JsoJnbi-AGbS4nRe31xyI'
 
 def main():
     bot = telegram.Bot(token=TOKEN)
@@ -25,6 +24,11 @@ def main():
     updater.start_polling()
 
 def start(update, context):
+    menu_keyboard = [
+        ['/quick_booking', '/check_booking'],
+        ['/advanced_booking', '/report_issue']
+    ]
+    reply_markup = ReplyKeyboardMarkup(menu_keyboard, resize_keyboard=True)
     keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
                 [InlineKeyboardButton("Check Booking", callback_data='Check Booking')],
                 [InlineKeyboardButton("Advanced Booking", callback_data='Advanced Booking')],
@@ -36,16 +40,13 @@ def button(update, context):
     query = update.callback_query
     response = query.data
 
+    facilities = ["Pool Table", "Mahjong Table",  "Foosball", "Darts"]
+
     actions = {
         "Quick Booking": show_facility_options,
         "Check Booking": check_bookings,
         "Advanced Booking": advanced_booking,
         "Report Issue": report_issue,
-        #TODO: Use list to store the facilities.
-        "Pool Table": show_timing_options,
-        "Mahjong Table": show_timing_options,
-        "Foosball": show_timing_options,
-        "Darts": show_timing_options,
         "Confirm Booking": confirm_booking,
         "Accept Reminder": set_reminder,
         "Reject Reminder": reject_reminder,
@@ -57,6 +58,8 @@ def button(update, context):
         actions[response](query, context)
     elif response.find("Session") != -1:
         actions["Confirm Booking"](query, context)
+    elif response in facilities:
+        show_timing_options(query,context)
     else:
         context.bot.send_message(chat_id=query.message.chat_id, text="Unknown response!")
 
@@ -88,6 +91,7 @@ def show_facility_options(query, context):
     context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="Select your facility", reply_markup=reply_markup)
 
 def show_timing_options(query, context):
+    #TODO: Fix 12AM issue
     selected_facility = query.data
     context.chat_data['selected_facility'] = selected_facility
     
