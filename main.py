@@ -24,11 +24,6 @@ def main():
     updater.start_polling()
 
 def start(update, context):
-    menu_keyboard = [
-        ['/quick_booking', '/check_booking'],
-        ['/advanced_booking', '/report_issue']
-    ]
-    reply_markup = ReplyKeyboardMarkup(menu_keyboard, resize_keyboard=True)
     keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
                 [InlineKeyboardButton("Check Booking", callback_data='Check Booking')],
                 [InlineKeyboardButton("Advanced Booking", callback_data='Advanced Booking')],
