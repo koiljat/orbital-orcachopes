@@ -50,11 +50,18 @@ def button(update, context):
         "Accept Reminder": set_reminder,
         "Reject Reminder": reject_reminder,
         "Accept Booking": accept_booking,
-        "Abort Booking": abort_booking
+        "Abort Booking": abort_booking,
+        "Cancel Booking": handle_booking_selection
     }
 
     if response in actions:
         actions[response](query, context)
+    elif response.startswith("booking_"):
+        handle_booking_selection(update, context)
+    elif response.startswith("cancel_"):
+        handle_cancel_booking(update, context)
+    elif response.startswith("done_"):
+        handle_done_booking(update, context)
     elif response.find("Session") != -1:
         actions["Confirm Booking"](query, context)
     else:
@@ -67,7 +74,65 @@ def report_issue(query, context):
     pass
 
 def check_bookings(query, context):
-    pass
+    conn = mysql.connector.connect(
+            host="localhost", 
+            user="root",
+            password="Nerfcs45&",
+            database="ORCAChopes"
+            )
+    if conn.is_connected():
+        cursor = conn.cursor()
+        username=query.from_user.username
+        sql_query = "SELECT * FROM bookings WHERE username = %s"
+        cursor.execute(sql_query, (username,))
+        booking_results = cursor.fetchall()
+        booking_buttons = []
+        for booking in booking_results:
+            booking_id=booking[0]
+            start_time=booking[5]
+            end_time=booking[6]
+            booking_button= InlineKeyboardButton(
+            text=f"{start_time} to {end_time}",
+            callback_data=f"booking_{booking_id}"
+        )
+            booking_buttons.append([booking_button])
+        reply_markup = InlineKeyboardMarkup(booking_buttons)
+        context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="Select your Booking", reply_markup=reply_markup)
+
+def handle_booking_selection(update, context):
+    query=update.callback_query
+    booking_id = update.callback_query.data.split("_")[1]
+    booking_options = [
+        [
+            InlineKeyboardButton("Cancel Booking", callback_data=f"cancel_{booking_id}"),
+            InlineKeyboardButton("Done", callback_data=f"done_{booking_id}")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(booking_options)
+    query.message.reply_text("Select an option:", reply_markup=reply_markup)
+
+def handle_cancel_booking(update, context):
+    conn = mysql.connector.connect(
+            host="localhost", 
+            user="root",
+            password="Nerfcs45&",
+            database="ORCAChopes"
+            )
+    if conn.is_connected():
+        cursor = conn.cursor()
+        booking_id = update.callback_query.data.split("_")[1]
+        sql_query = "DELETE FROM bookings WHERE booking_id = %s"
+        cursor.execute(sql_query, (booking_id,))
+        conn.commit()
+        update.callback_query.answer(text=f"Booking ID {booking_id} canceled")
+        #TO DO: implement a no booking message when current bookings are cancelled
+        check_bookings(update.callback_query, context)   
+
+def handle_done_booking(update, context):
+    query=update.callback_query
+    booking_id = query.data.split("_")[1]
+    query.message.reply_text(f"booking {booking_id} confirmed")
+
 
 def abort_booking(query, context):
     text = "Booking terminated. \nThank you for using ORCAChopes."
@@ -128,7 +193,7 @@ def insert_booking(booking_data):
         conn = mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
 
