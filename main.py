@@ -72,7 +72,7 @@ def connect_data_base():
     return mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
 
@@ -99,10 +99,11 @@ def convert_to_12h_format(time_delta):
 def check_bookings(query, context):
     conn = connect_data_base()
     if conn.is_connected():
+        current_date = datetime.now(pytz.timezone('Asia/Singapore'))
         cursor = conn.cursor()
         username = context.chat_data['username']
-        sql_query = "SELECT booking_id, facility_name, date, start_time, end_time FROM bookings WHERE username = %s"
-        cursor.execute(sql_query, (username,))
+        sql_query = "SELECT booking_id, facility_name, date, start_time, end_time FROM bookings WHERE username = %s AND date = %s AND cancelled!= TRUE"
+        cursor.execute(sql_query, (username,current_date))
         booking_results = cursor.fetchall()
         booking_buttons = []
 
@@ -124,12 +125,13 @@ def handle_booking_selection(update, context):
     reply_markup = InlineKeyboardMarkup(booking_options)
     query.message.reply_text("Select an option:", reply_markup=reply_markup)
 
+
 def handle_cancel_booking(update, context):
     conn = connect_data_base()
     if conn.is_connected():
         cursor = conn.cursor()
         booking_id = context.chat_data['booking_id']
-        sql_query = "DELETE FROM bookings WHERE booking_id = %s"
+        sql_query = "UPDATE Bookings SET cancelled = TRUE WHERE booking_id = %s"
         cursor.execute(sql_query, (booking_id,))
         conn.commit()
         context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=f"Booking ID {booking_id} canceled")
