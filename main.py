@@ -129,6 +129,7 @@ def convert_to_12h_format(time_delta):
 def check_bookings(update, context):
     get_chat_info(update, context)
     conn = connect_data_base()
+
     if conn.is_connected():
         cursor = conn.cursor()
         username = context.chat_data['username']
@@ -142,16 +143,18 @@ def check_bookings(update, context):
             end_time = convert_to_12h_format(end_time)
             context.chat_data['booking_id'] = booking_id
             booking_button= InlineKeyboardButton(
-                text = f"{facility_name} on {date} from {start_time} to {end_time}",
-                callback_data = "handle_booking_selection"
-                )
+                    text = f"{facility_name} on {date} from {start_time} to {end_time}",
+                    callback_data = "handle_booking_selection"
+                    )
             booking_buttons.append([booking_button])
         reply_markup = InlineKeyboardMarkup(booking_buttons)
         context.bot.send_message(chat_id=update.effective_chat.id, text="Select your Booking:", reply_markup=reply_markup)
 
 def handle_booking_selection(update, context):
     query=update.callback_query
-    booking_options = [[InlineKeyboardButton("Cancel Booking", callback_data="handle_cancel_booking"), InlineKeyboardButton("Done", callback_data="handle_done_booking")]]
+    booking_options = [[InlineKeyboardButton("Cancel Booking", callback_data="handle_cancel_booking"), 
+            InlineKeyboardButton("Done", callback_data="handle_done_booking")]
+            ]
     reply_markup = InlineKeyboardMarkup(booking_options)
     query.message.reply_text("Select an option:", reply_markup=reply_markup)
 
