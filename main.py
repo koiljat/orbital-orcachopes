@@ -11,26 +11,53 @@ from config import TOKEN
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
 
+#Connect to MySQL database -> Change password if needed
+def connect_data_base():
+    return mysql.connector.connect(
+            host="localhost", 
+            user="root",
+            password="Password1!",
+            database="ORCAChopes"
+            )
+
 def main():
+    #Setting up the bot
     bot = telegram.Bot(token=TOKEN)
     updater = Updater(TOKEN, use_context=True)
     dispatcher = updater.dispatcher
+
+    #Creating handlers
     start_handler = CommandHandler('start', start)
+    quick_booking_handler = CommandHandler('quick_booking', quick_booking)
+    check_bookings_handler = CommandHandler('check_bookings', check_bookings)
     button_handler = CallbackQueryHandler(button)
 
+    #Add handlers to dispathcher
     dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(quick_booking_handler)
+    dispatcher.add_handler(check_bookings_handler)
     dispatcher.add_handler(button_handler)
-
+    
+    #Start running bot
     updater.start_polling()
 
 def start(update, context):
-    context.chat_data['username'] = update.effective_user.username
+    #Pull chat data
+    get_chat_info(update, context)
     keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
                 [InlineKeyboardButton("Check Booking", callback_data='Check Booking')],
                 [InlineKeyboardButton("Advanced Booking", callback_data='Advanced Booking')],
-                [InlineKeyboardButton("Report Issue", callback_data='Report Issue')]]
+                [InlineKeyboardButton("Report Issue", callback_data='Report Issue')]
+                ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     context.bot.send_message(chat_id=update.effective_chat.id, text="What would you like to do today?", reply_markup=reply_markup)
+
+#Save important chat details
+def get_chat_info(update, context):
+    context.chat_data['username'] = update.effective_user.username
+    context.chat_data['first_name'] = update.effective_user.first_name
+    context.chat_data['last_name'] = update.effective_user.last_name
+    context.chat_data['today_date'] = date.today()
 
 def button(update, context):
     query = update.callback_query
@@ -38,9 +65,7 @@ def button(update, context):
 
     facilities = ["Pool Table", "Mahjong Table",  "Foosball", "Darts"]
 
-    actions = {
-        "Quick Booking": show_facility_options,
-        "Check Booking": check_bookings,
+    query_actions = {
         "Advanced Booking": advanced_booking,
         "Report Issue": report_issue,
         "Confirm Booking": confirm_booking,
@@ -51,30 +76,24 @@ def button(update, context):
         "Cancel Booking": handle_booking_selection
     }
 
-    cancel_actions = {
+    update_actions = {
         "handle_booking_selection": handle_booking_selection,
         "handle_cancel_booking": handle_cancel_booking,
-        "handle_done_booking": handle_done_booking
+        "handle_done_booking": handle_done_booking,
+        "Check Booking": check_bookings,
+        "Quick Booking": quick_booking
     }
 
-    if response in actions:
-        actions[response](query, context)
-    elif response in cancel_actions:
-        cancel_actions[response](update, context)
+    if response in query_actions:
+        query_actions[response](query, context)
+    elif response in update_actions:
+        update_actions[response](update, context)
     elif response.find("Session") != -1:
-        actions["Confirm Booking"](query, context)
+        query_actions["Confirm Booking"](query, context)
     elif response in facilities:
         show_timing_options(query,context)
     else:
         context.bot.send_message(chat_id=query.message.chat_id, text="Unknown response!")
-
-def connect_data_base():
-    return mysql.connector.connect(
-            host="localhost", 
-            user="root",
-            password="Nerfcs45&",
-            database="ORCAChopes"
-            )
 
 def advanced_booking(query, context):
     pass
@@ -82,6 +101,17 @@ def advanced_booking(query, context):
 def report_issue(query, context):
     pass
 
+def quick_booking(update, context):
+    get_chat_info(update, context)
+    keyboard = [[InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
+                [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
+                [InlineKeyboardButton("Foosball", callback_data='Foosball')],
+                [InlineKeyboardButton("Darts", callback_data='Darts')]
+                ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Select your facility", reply_markup=reply_markup)
+
+#Convert time_delta object to 12h format
 def convert_to_12h_format(time_delta):
     total_seconds = time_delta.total_seconds()
 
@@ -96,14 +126,14 @@ def convert_to_12h_format(time_delta):
 
     return time_12h
 
-def check_bookings(query, context):
+def check_bookings(update, context):
+    get_chat_info(update, context)
     conn = connect_data_base()
     if conn.is_connected():
-        current_date = datetime.now(pytz.timezone('Asia/Singapore'))
         cursor = conn.cursor()
         username = context.chat_data['username']
         sql_query = "SELECT booking_id, facility_name, date, start_time, end_time FROM bookings WHERE username = %s AND date = %s AND cancelled!= TRUE"
-        cursor.execute(sql_query, (username,current_date))
+        cursor.execute(sql_query, (username, datetime.now().date()))
         booking_results = cursor.fetchall()
         booking_buttons = []
 
@@ -112,12 +142,12 @@ def check_bookings(query, context):
             end_time = convert_to_12h_format(end_time)
             context.chat_data['booking_id'] = booking_id
             booking_button= InlineKeyboardButton(
-            text = f"{facility_name} on {date} from {start_time} to {end_time}",
-            callback_data = "handle_booking_selection"
-            )
+                text = f"{facility_name} on {date} from {start_time} to {end_time}",
+                callback_data = "handle_booking_selection"
+                )
             booking_buttons.append([booking_button])
         reply_markup = InlineKeyboardMarkup(booking_buttons)
-        context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="Select your Booking:", reply_markup=reply_markup)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Select your Booking:", reply_markup=reply_markup)
 
 def handle_booking_selection(update, context):
     query=update.callback_query
@@ -125,18 +155,18 @@ def handle_booking_selection(update, context):
     reply_markup = InlineKeyboardMarkup(booking_options)
     query.message.reply_text("Select an option:", reply_markup=reply_markup)
 
-
 def handle_cancel_booking(update, context):
     conn = connect_data_base()
     if conn.is_connected():
         cursor = conn.cursor()
         booking_id = context.chat_data['booking_id']
+        print("updating")
         sql_query = "UPDATE Bookings SET cancelled = TRUE WHERE booking_id = %s"
         cursor.execute(sql_query, (booking_id,))
         conn.commit()
         context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=f"Booking ID {booking_id} canceled")
         #TO DO: implement a no booking message when current bookings are cancelled
-        check_bookings(update.callback_query, context)   
+        check_bookings(update, context)   
 
 def handle_done_booking(update, context):
     query=update.callback_query
@@ -162,11 +192,10 @@ def show_facility_options(query, context):
     context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="Select your facility", reply_markup=reply_markup)
 
 def show_timing_options(query, context):
-    #TODO: Fix 12AM issue
     selected_facility = query.data
     context.chat_data['selected_facility'] = selected_facility
     
-    curr_time = 12 #int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
+    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
     timing_options = []
     start_time = 7 if curr_time < 7 else curr_time
     end_time = 22
@@ -199,7 +228,7 @@ def get_booked_slots(facility_selected):
         output = []
         if conn.is_connected():
             cursor = conn.cursor()
-            cursor.execute("SELECT start_time FROM Bookings WHERE facility_name = %s", (facility_selected,))
+            cursor.execute("SELECT start_time FROM Bookings WHERE facility_name = %s AND cancelled = 0", (facility_selected,))
             rows = cursor.fetchall()
 
             for row in rows:
@@ -266,8 +295,8 @@ def accept_booking(query, context):
     booking_data = {
     'facility_name': facility,
     'username': context.chat_data['username'],
-    'firstname': query.from_user.first_name,
-    'lastname': query.from_user.last_name,
+    'firstname': context.chat_data['first_name'],
+    'lastname': context.chat_data['last_name'],
     'datetime': datetime.now(pytz.timezone('Asia/Singapore')),
     'date': date.today(),
     'start_time': start_time,
