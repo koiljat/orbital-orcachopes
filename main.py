@@ -5,7 +5,7 @@ from mysql.connector import Error
 import pytz
 import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 from config import TOKEN
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,7 +16,7 @@ def connect_data_base():
     return mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
 
@@ -32,12 +32,20 @@ def main():
     check_bookings_handler = CommandHandler('check_bookings', check_bookings)
     button_handler = CallbackQueryHandler(button)
 
+    conversation_handler= ConversationHandler(
+        entry_points=[CommandHandler('report', report_issue)],
+        states={
+            COMMENT: [MessageHandler(Filters.text & ~Filters.command, handle_report_comment)]
+        },
+        fallbacks=[CommandHandler('cancel_report', cancel_report)]
+    )
     #Add handlers to dispathcher
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(quick_booking_handler)
     dispatcher.add_handler(check_bookings_handler)
     dispatcher.add_handler(button_handler)
-    
+    dispatcher.add_handler(conversation_handler)
+
     #Start running bot
     updater.start_polling()
 
@@ -77,11 +85,13 @@ def button(update, context):
     }
 
     update_actions = {
+        "Comment": handle_report_comment,
         "handle_booking_selection": handle_booking_selection,
         "handle_cancel_booking": handle_cancel_booking,
         "handle_done_booking": handle_done_booking,
         "Check Booking": check_bookings,
-        "Quick Booking": quick_booking
+        "Quick Booking": quick_booking,
+        
     }
 
     if response in query_actions:
@@ -94,12 +104,47 @@ def button(update, context):
         show_timing_options(query,context)
     else:
         context.bot.send_message(chat_id=query.message.chat_id, text="Unknown response!")
+#confirm cancellation
+#back button
+#cannot select buttons again
 
 def advanced_booking(query, context):
     pass
 
-def report_issue(query, context):
-    pass
+COMMENT = 1
+
+def report_issue(update, context):
+    print("Inside report_issue function")
+    update.message.reply_text("Please provide your comment for the issue report.")
+    return COMMENT
+
+def handle_report_comment(update, context):
+    print("Inside handle_report_comment function")
+    comment = update.message.text
+    username = context.chat_data['username'] 
+    current_datetime = datetime.now(pytz.timezone('Asia/Singapore'))
+    try:
+        conn = connect_data_base()
+        if conn.is_connected():
+            cursor = conn.cursor()
+            sql_query = "INSERT INTO Reports (username, datetime, remarks) VALUES (%s, %s, %s)"
+            cursor.execute(sql_query, (username, current_datetime, comment))
+            conn.commit()
+            update.message.reply_text("Your feedback has been submitted. Thank You.")
+            print("Comment submitted successfully")
+        else:
+            update.message.reply_text("Oops! Something went wrong with the connection to the database. Please try again later.")
+            print("Error: Could not connect to database")
+    except Exception as e:
+        update.message.reply_text("Oops! Something went wrong while handling your feedback. Please try again later.")
+        print(str(e)) 
+        
+    return ConversationHandler.END
+
+def cancel_report(update, context):
+    context.chat_data.clear()
+    update.message.reply_text("The report has been cancelled.")
+    return ConversationHandler.END
 
 def quick_booking(update, context):
     get_chat_info(update, context)
