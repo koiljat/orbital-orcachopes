@@ -3,7 +3,7 @@ ORCAchopes - Residential Facilities Booking Bot (Apollo 11)
 
 telegram handle: @ORCAChopes_bot
 
-IMPORTANT: THIS PROJECT IS NOT ENDORSED BY RC4 AND IS IN NO WAY AFFILIATED WITH IT.
+Disclaimer: This project is an independent initiative and is not endorsed or affiliated with RC4 in any way. The project and its creators have no official connection or endorsement from RC4. Any views, opinions, or actions expressed within this project are solely those of the individuals involved and do not reflect the views or policies of RC4 or its affiliates.
 
 This is a an orbital project for a reservation system through a telegram bot.
 
@@ -33,6 +33,7 @@ Future Core Features (To be Implemented)
 4. Implement NLP feature to allow users to input booking specifics with natural language.
 
 User Stories
+
 Reserve a time slot for using a common facility such as the pool table, mahjong table or lounge, through an online booking system, so that I can plan my time effectively and avoid conflicts with other students.
 
 Receive alerts or notifications if a reservation I have made is canceled or modified, so that I can make alternative plans if necessary.
