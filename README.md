@@ -1,6 +1,8 @@
 # Orbital-23
 ORCAchopes - Residential Facilities Booking Bot (Apollo 11)
 
+telegram handle: @ORCAChopes_bot
+
 IMPORTANT: THIS PROJECT IS NOT ENDORSED BY RC4 AND IS IN NO WAY AFFILIATED WITH IT.
 
 This is a an orbital project for a reservation system through a telegram bot.
