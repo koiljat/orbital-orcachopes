@@ -123,10 +123,12 @@ def button(update, context):
         select_booking_dates(update, context)
     elif response in facilities:
         show_timing_options(query,context)
-    elif response.isinstance(int):
+    elif isinstance(response, int):
         handle_booking_selection(update, context)
     elif response == "Select Time":
-        context.bot.send_message(chat_id=update.effective_chat.id, 
+        context.bot.edit_message_text(
+            chat_id=update.effective_chat.id, 
+            message_id=update.callback_query.message.message_id, 
             text="Please enter your booking timing in the following format: \nStart-End \nE.g. 1400-1530\n\nPlease only book intervals of 30 minutes")
         return ADVANCE_BOOKING
     else:
@@ -168,21 +170,28 @@ def advanced_booking(update, context):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.bot.send_message(chat_id=update.effective_chat.id, 
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, 
         text="Advance Booking selected. \nYou may book up to 7 days in advance. \nPlease select your facility:", 
-        reply_markup=reply_markup)
+        reply_markup=reply_markup
+        )
 
 def select_booking_dates(update, context):
     response = update.callback_query.data
-    filler, facility = response.split(") ")
+    facility = response.split(") ")[1]
     context.chat_data['selected_facility'] = facility
     available_dates = get_available_dates()
     keyboard = []
+
     for date in available_dates:
         keyboard.append([InlineKeyboardButton(date, callback_data="Select Time")])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(chat_id=update.effective_chat.id, 
-        text="Please select your date:",
+
+    context.bot.edit_message_text(
+        chat_id=update.effective_chat.id, 
+        message_id=update.callback_query.message.message_id, 
+        text="Please select your date:", 
         reply_markup=reply_markup)
     
 def get_available_dates():
@@ -307,7 +316,6 @@ def handle_booking_selection(update, context):
         reply_markup = InlineKeyboardMarkup(booking_options)
         query.message.reply_text("Select an option:", reply_markup=reply_markup)
 
-
 def handle_cancel_booking(update, context):
     conn = connect_data_base()
     if conn.is_connected():
@@ -321,7 +329,7 @@ def handle_cancel_booking(update, context):
         check_bookings(update, context)   
 
 def handle_done_booking(update, context):
-    query=update.callback_query
+    query = update.callback_query
     booking_id = query.data.split("_")[1]
     query.message.reply_text(f"booking {booking_id} confirmed")
 
