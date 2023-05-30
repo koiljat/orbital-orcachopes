@@ -17,7 +17,7 @@ def connect_data_base():
     return mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
 
@@ -110,13 +110,16 @@ def button(update, context):
         "Quick Booking": quick_booking,
         "Report Issue": report_issue,
         "handle_cancel_booking": handle_cancel_booking,
-        "handle_done_booking": handle_done_booking
+        "handle_done_booking": handle_done_booking,
+        "handle_booking_selection": handle_booking_selection,
     }
 
     if response in query_actions:
         query_actions[response](query, context)
     elif response in update_actions:
         update_actions[response](update, context)
+    elif response.isdigit():
+        handle_booking_selection(query, context)
     elif response.find("Session") != -1:
         query_actions["Confirm Booking"](query, context)
     elif response.find("(Advance)") != -1:
@@ -290,7 +293,7 @@ def check_bookings(update, context):
             context.chat_data['booking_id'] = booking_id
             booking_button= InlineKeyboardButton(
                     text = f"{facility_name} on {str(date)[5:]} from {start_time} to {end_time}",
-                    callback_data = booking_id
+                    callback_data = "handle_booking_selection"
                     )
             booking_buttons.append([booking_button])
         reply_markup = InlineKeyboardMarkup(booking_buttons)
@@ -304,19 +307,11 @@ def handle_booking_selection(update, context):
         InlineKeyboardButton("Cancel Booking", callback_data="handle_cancel_booking"), 
         InlineKeyboardButton("Done", callback_data="handle_done_booking")
     ]]
-
-    conn = connect_data_base()
-
-    if conn.is_connected():
-        cursor = conn.cursor()
-        booking_id = context.chat_data['booking_id']
-        cursor.execute("SELECT facility_name, date, start_time, end_time FROM Bookings WHERE booking_id = %s AND cancelled = 0", (booking_id,))
-        result = cursor.fetchone()
-
-        reply_markup = InlineKeyboardMarkup(booking_options)
-        query.message.reply_text("Select an option:", reply_markup=reply_markup)
+    reply_markup = InlineKeyboardMarkup(booking_options)
+    query.message.reply_text("Select an option:", reply_markup=reply_markup)
 
 def handle_cancel_booking(update, context):
+   
     conn = connect_data_base()
     if conn.is_connected():
         cursor = conn.cursor()
@@ -327,6 +322,7 @@ def handle_cancel_booking(update, context):
         context.bot.send_message(chat_id=update.callback_query.message.chat_id, text=f"Booking ID {booking_id} canceled")
         #TO DO: implement a no booking message when current bookings are cancelled
         check_bookings(update, context)   
+
 
 def handle_done_booking(update, context):
     query = update.callback_query
