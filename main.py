@@ -135,6 +135,7 @@ def button(update, context):
             )
         return ADVANCE_BOOKING
     else:
+        print(response)
         context.bot.send_message(chat_id=query.message.chat_id, text="Unknown response!")
 
 def get_chat_info(update, context):
@@ -146,6 +147,7 @@ def get_chat_info(update, context):
 
 ### ADVANCE BOOKING ###
 def advanced_booking(update, context):
+    '''Command Hanlder for Advance Booking Feature'''
     get_chat_info(update, context)
     keyboard = [[InlineKeyboardButton("Pool Table", callback_data='(Advance) Pool Table')],
                 [InlineKeyboardButton("Mahjong Table", callback_data='(Advance) Mahjong Table')],
@@ -180,23 +182,53 @@ def select_booking_dates(update, context):
         reply_markup=reply_markup)
 
 def select_timing_handler(update, context):
-    msg = update.message.text
-    try:
-        start_time, end_time = msg.split("-")
-        context.chat_data['start_time'] = start_time
-        context.chat_data['end_time'] = end_time
-        response_text = f"{msg} selected \nStart Time: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
-        keyboard = [[
-            InlineKeyboardButton("Yes", callback_data='Accept Booking'),
-            InlineKeyboardButton("No", callback_data='Abort Booking')
-        ]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        context.bot.send_message(chat_id=update.effective_chat.id, text=response_text, reply_markup=reply_markup)
-        return ConversationHandler.END
+    user_input = update.message.text
 
+    try:
+        start_time, end_time = user_input.split("-")
+        if validate_time_range(start_time, end_time):
+            #Converts the user_input time to datetime object
+            start_time = datetime.strptime(start_time, '%H%M').time()
+            end_time = datetime.strptime(end_time, '%H%M').time()
+
+            #Saves the start_time and end_time for insertion later
+            context.chat_data['start_time'] = start_time
+            context.chat_data['end_time'] = end_time
+
+            response_text = f"{context.chat_data['selected_facility']} selected \nStart Time: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
+
+            keyboard = [[
+                InlineKeyboardButton("Yes", callback_data='Accept Booking'),
+                InlineKeyboardButton("No", callback_data='Abort Booking')
+                ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, 
+                text=response_text, 
+                reply_markup=reply_markup
+                )
+            return ConversationHandler.END
+        else:
+            raise Exception("Invalid Input!")
     except:
         update.message.reply_text("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /end")
         return ADVANCE_BOOKING
+
+def validate_time_range(start_time_str, end_time_str):
+    try:
+        start_time = datetime.strptime(start_time_str, '%H%M')
+        end_time = datetime.strptime(end_time_str, '%H%M')
+
+        if start_time >= end_time:
+            return False
+
+        if start_time.minute % 30 != 0 or end_time.minute % 30 != 0:
+            return False
+
+        return True
+    except ValueError:
+        return False
 
 def get_available_dates():
     '''Get dates available for advance booking'''
@@ -249,17 +281,61 @@ def cancel_report(update, context):
 ### QUICK BOOKING ###
 def quick_booking(update, context):
     get_chat_info(update, context)
+
     keyboard = [[InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
                 [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
                 [InlineKeyboardButton("Foosball", callback_data='Foosball')],
                 [InlineKeyboardButton("Darts", callback_data='Darts')]
                 ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "Select your facility:"
+
     if update.callback_query != None:
-        context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=update.callback_query.message.message_id, text=text, reply_markup=reply_markup)
+        context.bot.edit_message_text(
+            chat_id=update.effective_chat.id, 
+            message_id=update.callback_query.message.message_id, 
+            text=text, 
+            reply_markup=reply_markup
+            )
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=reply_markup)
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text=text, 
+            reply_markup=reply_markup
+            )
+
+def show_timing_options(query, context):
+    selected_facility = query.data
+    context.chat_data['selected_facility'] = selected_facility
+    
+    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
+    timing_options = [[InlineKeyboardButton("Back", callback_data="Quick Booking")]]
+
+    start_time = 7 if curr_time < 7 else curr_time
+    end_time = 22
+    current = start_time
+    
+    booked_slots = get_booked_slots(context.chat_data['selected_facility'])
+    while current <= end_time:
+        if current in booked_slots:
+            current += 1
+            continue
+        from_time = f'{current} AM' if current < 12 else ('12 PM' if current == 12 else f'{current - 12} PM')
+        to_time = f'{current+1} AM' if current+1 < 12 else ('12 PM' if current+1 == 12 else f'{current+1 - 12} PM')
+        timing_options.append([InlineKeyboardButton(f"{from_time} to {to_time}", callback_data=f"Session {current - 6}")])
+        current += 1
+
+    keyboard = timing_options
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    context.bot.edit_message_text(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
+        text=f"{selected_facility} selected. \nPlease select your timing",
+        reply_markup=reply_markup
+    )
 
 def convert_to_12h_format(time_delta):
     '''Convert time_delta object to 12h format'''
@@ -274,6 +350,10 @@ def convert_to_12h_format(time_delta):
     time_12h = f'{hours:02d}:{minutes:02d} {period}'
 
     return time_12h
+
+def get_session_info(session):
+    hour = int(session[8:]) + 6
+    return (time(hour=hour), time(hour=hour+1))
 
 ### CHECK BOOKING ###
 def check_bookings(update, context):
@@ -312,7 +392,9 @@ def handle_booking_selection(update, context):
     ]]
     booking_result = get_booking_details(update.callback_query.data)
     text = f"""Facility: {booking_result[0]}\nDate: {booking_result[1]}\nStart Time: {booking_result[2]}\nEnd Time: {booking_result[3]}\n\nSelect an option:"""
+
     reply_markup = InlineKeyboardMarkup(booking_options)
+
     context.bot.edit_message_text(
         chat_id=update.effective_chat.id, 
         message_id=update.callback_query.message.message_id, 
@@ -322,6 +404,7 @@ def handle_booking_selection(update, context):
 
 def get_booking_details(booking_id):
     conn = connect_data_base()
+
     if conn.is_connected():
         cursor = conn.cursor()
         sql_query = "SELECT facility_name, date, start_time, end_time FROM Bookings WHERE booking_id = %s"
@@ -329,9 +412,9 @@ def get_booking_details(booking_id):
         booking_result = cursor.fetchone()
         return booking_result
 
-
 def handle_cancel_booking(update, context):
     conn = connect_data_base()
+    
     if conn.is_connected():
         cursor = conn.cursor()
         booking_id = context.chat_data['booking_id']
@@ -355,39 +438,13 @@ def handle_done_booking(update, context):
 
 ### General Booking Functions ###
 def abort_booking(query, context):
-    text = "Booking terminated. \nThank you for using ORCAChopes."
-    context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text=text)
+    text = "Booking terminated. \nThank you for using ORCAChopes.\n To make another booking, enter /quick_booking or /advance_booking"
 
-def show_timing_options(query, context):
-    selected_facility = query.data
-    context.chat_data['selected_facility'] = selected_facility
-    
-    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
-    timing_options = []
-    start_time = 7 if curr_time < 7 else curr_time
-    end_time = 22
-    current = start_time
-    
-    booked_slots = get_booked_slots(context.chat_data['selected_facility'])
-    while current <= end_time:
-        if current in booked_slots:
-            current += 1
-            continue
-        from_time = f'{current} AM' if current < 12 else ('12 PM' if current == 12 else f'{current - 12} PM')
-        to_time = f'{current+1} AM' if current+1 < 12 else ('12 PM' if current+1 == 12 else f'{current+1 - 12} PM')
-        timing_options.append([InlineKeyboardButton(f"{from_time} to {to_time}", callback_data=f"Session {current - 6}")])
-        current += 1
-    
-    keyboard = timing_options
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
     context.bot.edit_message_text(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id,
-        text=f"{selected_facility} selected. \nPlease select your timing",
-        reply_markup=reply_markup
-    )
+        chat_id=query.message.chat_id, 
+        message_id=query.message.message_id, 
+        text=text
+        )
 
 def get_booked_slots(facility_selected):
     try:
@@ -408,21 +465,23 @@ def get_booked_slots(facility_selected):
 def confirm_booking(query, context):
     timing_selected = query.data
     start_time = get_session_info(timing_selected)[0]
-    context.chat_data['start_time'] = start_time
     end_time = get_session_info(timing_selected)[1]
     context.chat_data['end_time'] = end_time
+    context.chat_data['start_time'] = start_time
 
-    response_text = f"{timing_selected} selected \nStart Time: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
+    response_text = f"{context.chat_data['selected_facility']} \nStart: {start_time} \nEnd: {end_time} \nConfirm booking?"
 
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),
-                 InlineKeyboardButton("No", callback_data='Abort Booking')]]
+                 InlineKeyboardButton("No", callback_data='Abort Booking')
+                 ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.bot.edit_message_text(
         chat_id=query.message.chat_id, 
         message_id=query.message.message_id, 
         text=response_text, 
-        reply_markup=reply_markup)
+        reply_markup=reply_markup
+        )
 
 def insert_booking(booking_data):
     try:
@@ -458,55 +517,70 @@ def insert_booking(booking_data):
     except Error as e:
         print(f"Error inserting booking: {e}")
 
-def get_session_info(session):
-    hour = int(session[8:]) + 6
-    return (time(hour=hour), time(hour=hour+1))
-
 def accept_booking(query, context):
     facility = context.chat_data['selected_facility']
     start_time = context.chat_data['start_time']
     end_time = context.chat_data['end_time']
 
     booking_data = {
-    'facility_name': facility,
-    'username': context.chat_data['username'],
-    'firstname': context.chat_data['first_name'],
-    'lastname': context.chat_data['last_name'],
-    'datetime': datetime.now(pytz.timezone('Asia/Singapore')),
-    'date': date.today(),
-    'start_time': start_time,
-    'end_time': end_time,
-    'cancelled': False,
-    'reminder': False
-    }
+        'facility_name': facility,
+        'username': context.chat_data['username'],
+        'firstname': context.chat_data['first_name'],
+        'lastname': context.chat_data['last_name'],
+        'datetime': datetime.now(pytz.timezone('Asia/Singapore')),
+        'date': date.today(),
+        'start_time': start_time,
+        'end_time': end_time,
+        'cancelled': False,
+        'reminder': False
+        }
     context.chat_data['booking_data'] = booking_data
 
-    booking_text = f'Booking Confirmed! \nFacility: {facility} \nStart: {start_time} \nEnd: {end_time}'
+    text = f'Booking Confirmed! \nFacility: {facility} \nStart: {start_time} \nEnd: {end_time}'
 
-    keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Reminder'),
-                 InlineKeyboardButton("No", callback_data='Reject Reminder')]]
+    keyboard = [[
+        InlineKeyboardButton("Yes", callback_data='Accept Reminder'),
+        InlineKeyboardButton("No", callback_data='Reject Reminder')
+        ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.bot.edit_message_text(
         chat_id=query.message.chat_id, 
         message_id=query.message.message_id, 
-        text=booking_text
+        text=text
         )
     
-    context.bot.send_message(chat_id=query.message.chat_id, text="Would you like to set a reminder?", reply_markup=reply_markup)
+    context.bot.send_message(
+        chat_id=query.message.chat_id, 
+        text="Would you like to set a reminder?", 
+        reply_markup=reply_markup
+        )
 
 ### REMINDER FUNCTIONS ###
 def set_reminder(query, context):
     booking_data = context.chat_data['booking_data']
     booking_data['reminder'] = True
+
     insert_booking(booking_data)
-    context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text="A reminder will be sent to you 15 minutes before the start time.")
+
+    text = "A reminder will be sent to you 15 minutes before the start time.\n\nTo make another booking, enter /quick_booking or /advance_booking"
+
+    context.bot.edit_message_text(
+        chat_id=query.message.chat_id, 
+        message_id=query.message.message_id, 
+        text=text)
 
 def reject_reminder(query, context):
     booking_data = context.chat_data['booking_data']
+
     insert_booking(booking_data)
-    text = "Thank you for booking! \nPlease remember to cancel your booking if you are not able to make it for the session."
-    context.bot.edit_message_text(chat_id=query.message.chat_id, message_id=query.message.message_id, text=text)
+
+    text = "Thank you for booking! \nPlease remember to cancel your booking if you are not able to make it for the session.\n\nTo make another booking, enter /quick_booking or /advance_booking"
+
+    context.bot.edit_message_text(
+        chat_id=query.message.chat_id, 
+        message_id=query.message.message_id, 
+        text=text)
 
 if __name__ == '__main__':
     main()
