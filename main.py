@@ -1,4 +1,5 @@
 import logging
+import qrcode
 from datetime import date, datetime, time, timedelta
 import mysql.connector
 from mysql.connector import Error
@@ -17,9 +18,19 @@ def connect_data_base():
     return mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
+
+#qr_code implementation(pool table)
+data = "https://t.me/ORCAChopes?start=quick_booking_PoolTable"
+qr = qrcode.QRCode(version=1, box_size=10, border=5)
+qr.add_data(data)
+qr.make(fit=True)
+img = qr.make_image(fill='black', back_color='white')
+img.save('qrcode001.png')
+
+
 
 #ConverstationHandlers States
 ADVANCE_BOOKING = 0
@@ -331,10 +342,12 @@ def cancel_report(update, context):
     return ConversationHandler.END
 
 ### QUICK BOOKING ###
-def quick_booking(update, context):
+def quick_booking(update, context, facility=None):
     get_chat_info(update, context)
-
-    keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
+    if facility:
+        context.chat_data['selected_facility'] = facility
+    else:
+        keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
                 [InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
                 [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
                 [InlineKeyboardButton("Foosball", callback_data='Foosball')],
