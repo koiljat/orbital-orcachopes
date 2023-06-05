@@ -21,6 +21,7 @@ def connect_data_base():
             database="ORCAChopes"
             )
 
+
 #ConverstationHandlers States
 ADVANCE_BOOKING = 0
 STATE_COMMENT = 1
@@ -378,13 +379,19 @@ def terminate_report(update, context):
 def quick_booking(update, context):
     '''Command Handler for Quick Booking Feature'''
     get_chat_info(update, context)
+    command = update.message.text[1:]  
+    facility = command.split('_')[1] if '_' in command else None
 
-    keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
-                [InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
-                [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
-                [InlineKeyboardButton("Foosball", callback_data='Foosball')],
-                [InlineKeyboardButton("Darts", callback_data='Darts')]
-                ]
+    if facility:
+        context.chat_data['selected_facility'] = facility
+        show_available_time(update, context)
+    else:
+        keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
+                    [InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
+                    [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
+                    [InlineKeyboardButton("Foosball", callback_data='Foosball')],
+                    [InlineKeyboardButton("Darts", callback_data='Darts')]
+                    ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "Select your facility:"
