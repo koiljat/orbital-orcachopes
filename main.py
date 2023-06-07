@@ -17,7 +17,7 @@ def connect_data_base():
     return mysql.connector.connect(
             host="localhost", 
             user="root",
-            password="Password1!",
+            password="Nerfcs45&",
             database="ORCAChopes"
             )
 
@@ -33,13 +33,13 @@ def main():
     dispatcher = updater.dispatcher
 
     #Creating CommandHandlers
-    start_handler = CommandHandler('start', start)
-    quick_booking_handler = CommandHandler('quick_booking', quick_booking)
+    start_handler = CommandHandler('start', start, pass_args=True)
+    quick_booking_handler = CommandHandler('quick_booking', quick_booking, pass_args=True)
     check_bookings_handler = CommandHandler('check_bookings', check_bookings)
     advanced_booking_handler = CommandHandler('advance_booking', advanced_booking)
     end_handler = CommandHandler('end', end)
     report_issue_handler = CommandHandler('report', report_issue)
-
+    
     #Creating CallbackQueryHandlers
     button_handler = CallbackQueryHandler(button)
 
@@ -66,12 +66,19 @@ def main():
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(button_handler)
     
+    
     #Start running bot
     updater.start_polling()
     updater.idle()
 
 ### General Bot Functions ###
 def start(update, context):
+    if context.args:
+        if context.args[0] == 'quick_booking':
+            return quick_booking(update, context)
+    
+    context.user_data['command'] = ' '.join(context.args)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Starting...")
     #Pull chat data
     get_chat_info(update, context)
 
@@ -375,18 +382,13 @@ def terminate_report(update, context):
     update.message.reply_text("The report has been cancelled.")
     return ConversationHandler.END
 
+
 ### QUICK BOOKING ###
-def quick_booking(update, context):
+def quick_booking(update, context, selected_facility=None):
     '''Command Handler for Quick Booking Feature'''
     get_chat_info(update, context)
-    command = update.message.text[1:]  
-    facility = command.split('_')[1] if '_' in command else None
-
-    if facility:
-        context.chat_data['selected_facility'] = facility
-        show_available_time(update, context)
-    else:
-        keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
+    
+    keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
                     [InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
                     [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
                     [InlineKeyboardButton("Foosball", callback_data='Foosball')],
@@ -410,7 +412,7 @@ def quick_booking(update, context):
             reply_markup=reply_markup
             )
 
-def show_available_time(query, context):
+def show_available_time(query, context, selected_facility=None): 
     selected_facility = query.data
     context.chat_data['selected_facility'] = selected_facility
     
