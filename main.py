@@ -19,13 +19,13 @@ def main():
     dispatcher = updater.dispatcher
 
     #Create CommandHandler objects for functions
-    start_handler = CommandHandler('start', start)
+    start_handler = CommandHandler('start', start, pass_args=True)
     quick_booking_handler = CommandHandler('quick_booking', quick_booking)
     check_bookings_handler = CommandHandler('check_bookings', check_bookings)
     advanced_booking_handler = CommandHandler('advance_booking', advanced_booking)
     report_issue_handler = CommandHandler('report', report_issue)
     end_handler = CommandHandler('end', end)
-
+    instant_booking_handler= CommandHandler('instant_booking', instant_booking)
     #Create CallbackQueryHandlers
     query_handler = CallbackQueryHandler(handle_query)
 
@@ -51,6 +51,7 @@ def main():
     dispatcher.add_handler(report_issue_handler)
     dispatcher.add_handler(end_handler)
     dispatcher.add_handler(query_handler)
+    dispatcher.add_handler(instant_booking_handler)
 
     #Run the bot
     updater.start_polling()
@@ -60,6 +61,13 @@ def start(update, context):
     '''This function will start the bot and provide an interface for users to nagivate.'''
     #Collect user data
     get_user_details(update, context)
+
+    #check if any facillity is passed as an argument via the qrcode
+    args = context.args
+    if args:
+        facility = args[0].replace('_', ' ').title()
+        instant_booking(update, context, facility)
+        return
 
     #Create an InlineKeyboard for user to interact
     keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
@@ -342,6 +350,20 @@ def reject_reminder(update, context):
         context.bot.edit_message_text(chat_id=update.effective_chat.id, 
             message_id=update.callback_query.message.message_id, 
             text=text)
+        
+### Instant Booking Feature
+
+def instant_booking(update, context,facility):
+    get_user_details(update, context)
+    '''This function will allow the user to book the facility within the current hour'''
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, 
+        text=f"The {facility} is booked."
+    )
+
+def get_current_bookings(date, time):
+    pass
+
 
 ### Check Booking Feature
 def check_bookings(update, context):
