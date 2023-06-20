@@ -3,6 +3,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Conversa
 from datetime import date, datetime
 from config import *
 from helper import *
+import pytz
 
 ### ConversationHandler States
 ADVANCE_BOOKING = 0
@@ -123,10 +124,12 @@ def handle_query(update, context):
         'Check Booking': check_bookings,
         'Advance Booking': advanced_booking,
         'Back': start,
+        'Instant Booking': instant_booking,
         'Pool Table': select_quick_booking_timing,
         'Mahjong Table': select_quick_booking_timing,
         'Foosball': select_quick_booking_timing,
         'Darts': select_quick_booking_timing,
+        'Book': handle_instant_booking,
         'Confirm Booking': confirm_booking,
         'Accept Booking': accept_booking,
         "Abort Booking": abort_booking,
@@ -352,18 +355,73 @@ def reject_reminder(update, context):
             text=text)
         
 ### Instant Booking Feature
-
-def instant_booking(update, context,facility):
+def instant_booking(update, context, facility):
     get_user_details(update, context)
     '''This function will allow the user to book the facility within the current hour'''
-    context.bot.send_message(
-        chat_id=update.effective_chat.id, 
-        text=f"The {facility} is booked."
-    )
 
-def get_current_bookings(date, time):
-    pass
+    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
+    curr_date = context.chat_data['today_date']
+    
+    context.chat_data['selected_facility']=facility
+    context.chat_data['start_time']= curr_time.replace(minute=0, second=0)
+    context.chat_data['end_time']= context.chat_data['start_time']+ timedelta(hours=1)
 
+    if facility is None:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text="No facility specified."
+        )
+        return
+    
+    booked=check_currently_booked(curr_date, curr_time, facility)
+    
+    if not booked:
+        keyboard = [
+            [InlineKeyboardButton("Book", callback_data=f"Book")],
+            [InlineKeyboardButton("Cancel", callback_data="Done")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text=f"{facility} is available. Do you want to book it?", 
+            reply_markup=reply_markup
+        )
+    else:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text=f"Sorry, {facility} is currently booked."
+        )
+
+def handle_instant_booking(update, context):
+    query= update.callback_query
+    
+    start_time = context.chat_data['start_time']
+    end_time = context.chat_data['end_time']
+    
+    response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time} \nEnd: {end_time} \nConfirm booking?"
+    
+    keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),InlineKeyboardButton("No", callback_data='Abort Booking')],
+    [InlineKeyboardButton("Back", callback_data='Instant Booking')]]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    context.bot.edit_message_text(chat_id=query.message.chat_id, 
+    message_id=query.message.message_id, 
+    text=response_text, 
+    reply_markup=reply_markup)
+
+def check_currently_booked(curr_date, curr_time, facility):
+    with connect_to_sql() as conn:
+        cursor=conn.cursor()
+        query= ("SELECT * FROM bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s ")
+        cursor.execute(query, (facility, curr_time, curr_time, curr_date))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        # if rows returned means the facility is booked
+        return len(rows) > 0
 
 ### Check Booking Feature
 def check_bookings(update, context):
