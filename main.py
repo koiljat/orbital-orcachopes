@@ -359,10 +359,11 @@ def instant_booking(update, context, facility):
     get_user_details(update, context)
     '''This function will allow the user to book the facility within the current hour'''
 
-    curr_time = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime('%H'))
+    curr_time = datetime.now(pytz.timezone('Asia/Singapore'))
     curr_date = context.chat_data['today_date']
     
     context.chat_data['selected_facility']=facility
+    context.chat_data['selected_date'] = date.today()
     context.chat_data['start_time']= curr_time.replace(minute=0, second=0)
     context.chat_data['end_time']= context.chat_data['start_time']+ timedelta(hours=1)
 
@@ -399,8 +400,11 @@ def handle_instant_booking(update, context):
     
     start_time = context.chat_data['start_time']
     end_time = context.chat_data['end_time']
+
+    start_time_str = start_time.strftime('%Y-%m-%d %H:%M')
+    end_time_str = end_time.strftime('%Y-%m-%d %H:%M')
     
-    response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time} \nEnd: {end_time} \nConfirm booking?"
+    response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time_str} \nEnd: {end_time_str} \nConfirm booking?"
     
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),InlineKeyboardButton("No", callback_data='Abort Booking')],
     [InlineKeyboardButton("Back", callback_data='Instant Booking')]]
@@ -415,7 +419,7 @@ def handle_instant_booking(update, context):
 def check_currently_booked(curr_date, curr_time, facility):
     with connect_to_sql() as conn:
         cursor=conn.cursor()
-        query= ("SELECT * FROM bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s ")
+        query= ("SELECT * FROM bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s AND cancelled = False")
         cursor.execute(query, (facility, curr_time, curr_time, curr_date))
         rows = cursor.fetchall()
         cursor.close()
