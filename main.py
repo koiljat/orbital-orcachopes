@@ -167,7 +167,7 @@ def quick_booking(update, context):
     '''This will allow user to book a facility on the day.'''
     get_user_details(update, context) #We need to collect user details, just in case function not triggered via start
 
-    keyboard = [[InlineKeyboardButton("Back", callback_data='start')],
+    keyboard = [[InlineKeyboardButton("Back", callback_data='Back')],
     [InlineKeyboardButton("Pool Table", callback_data='Pool Table')],
     [InlineKeyboardButton("Mahjong Table", callback_data='Mahjong Table')],
     [InlineKeyboardButton("Foosball", callback_data='Foosball')],
@@ -235,7 +235,7 @@ def confirm_booking(update, context):
     response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time} \nEnd: {end_time} \nConfirm booking?"
 
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),InlineKeyboardButton("No", callback_data='Abort Booking')],
-    [InlineKeyboardButton("Back", callback_data=context.chat_data['previous'])]]
+        [InlineKeyboardButton("Back", callback_data=context.chat_data['selected_facility'])]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -315,7 +315,7 @@ def insert_booking(booking_data):
         insert_query = """INSERT INTO Bookings (facility_name, username, datetime, date, start_time, end_time, cancelled, reminder)
                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
-        cursor.execute("SELECT * FROM bookings WHERE start_time = %s AND end_time = %s AND facility_name = %s AND date = %s",
+        cursor.execute("SELECT * FROM Bookings WHERE start_time = %s AND end_time = %s AND facility_name = %s AND date = %s",
             (start_time, end_time, facility_name, date))
 
         if cursor.fetchall():
@@ -341,6 +341,19 @@ def set_reminder(update, context):
             text=text)
 
 def reject_reminder(update, context):
+    booking_data = context.chat_data['booking_data']
+    try:
+        insert_booking(booking_data)
+    except Exception as e:
+        context.bot.edit_message_text(chat_id=update.effective_chat.id, 
+            message_id=update.callback_query.message.message_id, 
+            text=str(e))
+    else:
+        text = "Thank you for booking! \nPlease remember to cancel your booking if you are not able to make it for the session.\n\nTo make another booking, enter /quick_booking or /advance_booking"
+        context.bot.edit_message_text(chat_id=update.effective_chat.id, 
+            message_id=update.callback_query.message.message_id, 
+            text=text)
+
     booking_data = context.chat_data['booking_data']
     try:
         insert_booking(booking_data)
@@ -421,7 +434,7 @@ def handle_instant_booking(update, context):
 def check_currently_booked(curr_date, curr_time, facility):
     with connect_to_sql() as conn:
         cursor=conn.cursor()
-        query= ("SELECT * FROM bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s AND cancelled = False")
+        query= ("SELECT * FROM Bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s AND cancelled = False")
         cursor.execute(query, (facility, curr_time, curr_time, curr_date))
         rows = cursor.fetchall()
         cursor.close()
@@ -511,7 +524,7 @@ def get_personal_bookings(username, date):
     '''This function will show users which appointments they booked.'''
     with connect_to_sql() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT booking_id, facility_name, date, start_time, end_time FROM bookings WHERE username = %s AND cancelled!= TRUE  AND date >= %s", (username, date))
+        cursor.execute("SELECT booking_id, facility_name, date, start_time, end_time FROM Bookings WHERE username = %s AND cancelled!= TRUE  AND date >= %s", (username, date))
         booking_data = cursor.fetchall()
         return booking_data
 
@@ -539,7 +552,6 @@ def advanced_booking(update, context):
     send_message(update, context, text, reply_markup)
 
 def show_booking_dates(update, context):
-    print('show_booking_dates')
     '''This function will allow user to choose dates to book'''
     response = update.callback_query.data
     facility = response.split(") ")[1]
@@ -562,11 +574,11 @@ def get_user_timing(update, context):
     user_input = update.message.text
 
     if user_input == "/cancel":
-        terminate_input(update, context)
+        update.message.reply_text("Thank for using ORCAChopes.")
+        return ConversationHandler.END
 
     booked_slots = get_advanced_booked_slots(context.chat_data['selected_facility'],
             context.chat_data['selected_date'])
-    print(booked_slots)
     try:
         validate_user_input(user_input)
         start_time, end_time = user_input.split('-')
@@ -579,7 +591,7 @@ def get_user_timing(update, context):
 
         text = f"{context.chat_data['selected_facility']} selected\nDate:{context.chat_data['selected_date']}\nStart Time: {start_time} \nEnd Time: {end_time} \nConfirm booking?"
         keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'), InlineKeyboardButton("No", callback_data='Abort Booking')],
-            [InlineKeyboardButton("Back", callback_data="Select Time")]]
+            [InlineKeyboardButton("Back", callback_data=f"Select Time, {context.chat_data['selected_date']}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         context.bot.send_message(chat_id=update.effective_chat.id, 
@@ -655,3 +667,11 @@ def terminate_input(update, context):
 
 if __name__ == '__main__':
     main()
+
+def recurring_action(update, context):
+    # Perform the desired action here
+    with connect_to_sql as conn:
+        cursor = conn.cursor()
+        cursor.execute()
+    context.bot.send_message(chat_id="YOUR_CHAT_ID", text="This is a recurring action!")
+
