@@ -404,13 +404,15 @@ def handle_instant_booking(update, context):
     start_time_str = start_time.strftime('%H:%M')
     end_time_str = end_time.strftime('%H:%M')
     
+    context.chat_data['start_time'] = start_time_str
+    context.chat_data['end_time'] = end_time_str
     response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time_str} \nEnd: {end_time_str} \nConfirm booking?"
     
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),InlineKeyboardButton("No", callback_data='Abort Booking')],
     [InlineKeyboardButton("Back", callback_data='Instant Booking')]]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    print(start_time)
     context.bot.edit_message_text(chat_id=query.message.chat_id, 
     message_id=query.message.message_id, 
     text=response_text, 
