@@ -7,7 +7,6 @@ import pytz
 
 ### ConversationHandler States
 ADVANCE_BOOKING = 0
-STATE_COMMENT = 1
 
 def main():
     '''This is used to set up the neccesary for the bot'''
@@ -38,10 +37,10 @@ def main():
             ],
         states={
             ADVANCE_BOOKING: [MessageHandler(Filters.all, get_user_timing)],
-            STATE_COMMENT: [MessageHandler(Filters.all, handle_report_comment)]
             },
         fallbacks=[]
     )
+    report_message_handler = MessageHandler(Filters.text, handle_report_comment)
 
     #Register handlers
     dispatcher.add_handler(conv_handler)
@@ -53,6 +52,7 @@ def main():
     dispatcher.add_handler(end_handler)
     dispatcher.add_handler(query_handler)
     dispatcher.add_handler(instant_booking_handler)
+    dispatcher.add_handler(report_message_handler)
 
     #Run the bot
     updater.start_polling()
@@ -137,7 +137,8 @@ def handle_query(update, context):
         "Reject Reminder": reject_reminder,
         'Cancel Booking': handle_cancel_booking,
         'Confirm Cancel': cancel_booking,
-        'Done': handle_done_booking
+        'Done': handle_done_booking,
+        "Report Issue": report_issue
     }
 
     if response in function_dict:
@@ -157,8 +158,6 @@ def handle_query(update, context):
             text=f"Please enter your booking timing in the following format: \n\nStart-End \nE.g. 1400-1530\n\nPlease only book intervals of 30 minutes.\nAvailable Timings:\n{get_available_timings(context.chat_data['selected_date'],context.chat_data['selected_facility'])} ",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Back', callback_data=f"(Advance) {context.chat_data['selected_facility']}")]]))
         return ADVANCE_BOOKING
-    elif response == "Report Issue":
-        report_issue(update, context)
     else:
         context.bot.send_message(chat_id=query.message.chat_id, text="Unknown response!")
 
@@ -614,7 +613,7 @@ def get_user_timing(update, context):
 
 def get_available_timings(date, facility):
     available_timings = []
-    start = timedelta(hours=10)#datetime.now().hour)
+    start = timedelta(hours=datetime.now().hour)
     end = timedelta(hours=22)
     booked_timings = get_booked_slots(facility, date)
     booked_timings.sort()
@@ -641,7 +640,6 @@ def report_issue(update, context):
     text = "Please provide your comment for the issue\nTo cancel the report, type /cancel"
 
     send_message(update, context, text, reply_markup)
-    return STATE_COMMENT
     
 def handle_report_comment(update, context):
     '''This feature will help to insert the report into the database.'''
@@ -659,8 +657,6 @@ def handle_report_comment(update, context):
             conn.commit()
             update.message.reply_text("Your feedback has been submitted. Thank You.")
         
-    return ConversationHandler.END
-
 def terminate_input(update, context):
     '''This function will stop collecting the user's input.'''
     update.message.reply_text("Thank for using ORCAChopes.")
