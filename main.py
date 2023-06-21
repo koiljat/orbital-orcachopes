@@ -401,8 +401,8 @@ def handle_instant_booking(update, context):
     start_time = context.chat_data['start_time']
     end_time = context.chat_data['end_time']
 
-    start_time_str = start_time.strftime('%Y-%m-%d %H:%M')
-    end_time_str = end_time.strftime('%Y-%m-%d %H:%M')
+    start_time_str = start_time.strftime('%H:%M')
+    end_time_str = end_time.strftime('%H:%M')
     
     response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time_str} \nEnd: {end_time_str} \nConfirm booking?"
     
