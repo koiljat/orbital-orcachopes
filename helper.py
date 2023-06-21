@@ -53,7 +53,7 @@ def check_interval_overlap(start_time, end_time, intervals):
     for interval in intervals:
         interval_start = interval[0].total_seconds()
         interval_end = interval[1].total_seconds()
-        if (start >= interval_start and start < interval_end) or (end > interval_start and end > interval_end):
+        if (start >= interval_start and start < interval_end) or (end > interval_start and end < interval_end):
             raise Exception("The timing selected has already been booked. Please enter another timing.")
     return True
 
@@ -64,11 +64,11 @@ def validate_user_input(user_input):
         start_time = datetime.strptime(start_time, '%H%M')
         end_time = datetime.strptime(end_time, '%H%M')
         if (start_time >= end_time) or (start_time.minute % 30 != 0 or end_time.minute % 30 != 0):
-            raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /end")
+            raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /cancel")
         else:
             return True
     except Exception as e:
-        raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /end")
+        raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /cancel")
 
 def format_timedelta(tdelta):
     hours = tdelta // timedelta(hours=1)

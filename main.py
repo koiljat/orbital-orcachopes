@@ -191,10 +191,19 @@ def select_quick_booking_timing(update, context):
     keyboard = [[InlineKeyboardButton("Back", callback_data="Quick Booking")]]
 
     current_slot = int(datetime.now().strftime("%H"))
-    booked_slots = list(map(lambda x: int(str(x[0]).split(':')[0]), get_booked_slots(selected_facility, context.chat_data['today_date'])))
+    booked_slots = get_booked_slots(selected_facility, context.chat_data['today_date'])
+    occupied_hours = []
+    for slot in booked_slots:
+        start = int(str(slot[0]).split(':')[0])
+        end = int(str(slot[1]).split(':')[0])
+        if int(str(slot[1]).split(':')[1]):
+            end += 1
+        occupied_hours.extend(list(range(start,end)))
+    booked_slots = occupied_hours
     first_slot = 7 if current_slot < 7 else current_slot 
     last_slot = 22
     current_slot = first_slot
+    current_slot = 7
     while current_slot <= last_slot:
         if current_slot in booked_slots:
             current_slot += 1
@@ -577,7 +586,7 @@ def get_user_timing(update, context):
         update.message.reply_text("Thank for using ORCAChopes.")
         return ConversationHandler.END
 
-    booked_slots = get_advanced_booked_slots(context.chat_data['selected_facility'],
+    booked_slots = get_booked_slots(context.chat_data['selected_facility'],
             context.chat_data['selected_date'])
     try:
         validate_user_input(user_input)
@@ -603,21 +612,13 @@ def get_user_timing(update, context):
         update.message.reply_text(str(e))
         return ADVANCE_BOOKING
 
-def get_advanced_booked_slots(facility, date):
-    '''This function will get the slots that are already booked.'''
-    with connect_to_sql() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT start_time, end_time FROM Bookings WHERE facility_name = %s AND date >= %s", 
-            (facility, date))
-        booking_data = cursor.fetchall()
-        return booking_data
-
 def get_available_timings(date, facility):
     available_timings = []
-    start = timedelta(hours=7)
+    start = timedelta(hours=10)#datetime.now().hour)
     end = timedelta(hours=22)
     booked_timings = get_booked_slots(facility, date)
     booked_timings.sort()
+    print(booked_timings)
     while booked_timings:
         booked_slot = booked_timings[0]
         if start < booked_slot[0]:
