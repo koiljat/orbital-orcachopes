@@ -88,7 +88,7 @@ def start(update, context):
 
     data = update.effective_user.username + ',' + str(update.effective_chat.id)
     # Schedule the job to start running at 6 AM and repeat every hour
-    context.job_queue.run_repeating(scheduled_reminder, interval=10, first=2, context=data )
+    context.job_queue.run_repeating(scheduled_reminder, interval=3600, first=delay, context=data)
 
     #check if any facillity is passed as an argument via the qrcode
     args = context.args
