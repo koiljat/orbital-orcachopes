@@ -1,5 +1,5 @@
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters, JobQueue
 from datetime import date, datetime
 from config import *
 from helper import *
@@ -61,7 +61,34 @@ def main():
 def start(update, context):
     '''This function will start the bot and provide an interface for users to nagivate.'''
     #Collect user data
-    get_user_details(update, context)
+    def scheduled_reminder(context):
+        '''This function will send a reminder to the user if they have a booking on the same day.'''
+        username, chat_id = context.job.context.split(',')
+        hour = datetime.now().hour
+        if hour % 10 == 0:
+            hour = f'0{hour}'
+        else:
+            hour = str(hour)
+        with connect_to_sql() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM Bookings WHERE username = %s AND cancelled!= TRUE  AND date = %s AND reminder = TRUE AND start_time = %s OR start_time = %s ", 
+                (username, str(date.today()), f'{hour}:00:00', f'{hour}:30:00'))
+            booking_data = cursor.fetchall()
+        text  = '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n'
+        for booking in booking_data:
+            text += f'{booking[1]} at {str(booking[5])}'
+        if text != '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n':
+            context.bot.send_message(chat_id=chat_id, text=text)
+
+    now = datetime.now()
+    target_time = datetime(year=now.year, month=now.month, day=now.day, hour=6, minute=0)
+    if now > target_time:
+        target_time += timedelta(hours=now.hour)
+    delay = (target_time - now).total_seconds()
+
+    data = update.effective_user.username + ',' + str(update.effective_chat.id)
+    # Schedule the job to start running at 6 AM and repeat every hour
+    context.job_queue.run_repeating(scheduled_reminder, interval=10, first=2, context=data )
 
     #check if any facillity is passed as an argument via the qrcode
     args = context.args
@@ -203,7 +230,6 @@ def select_quick_booking_timing(update, context):
     first_slot = 7 if current_slot < 7 else current_slot 
     last_slot = 22
     current_slot = first_slot
-    current_slot = 7
     while current_slot <= last_slot:
         if current_slot in booked_slots:
             current_slot += 1
@@ -446,8 +472,6 @@ def check_currently_booked(curr_date, curr_time, facility):
         query= ("SELECT * FROM Bookings " "WHERE facility_name = %s AND start_time <= %s AND end_time > %s AND date = %s AND cancelled = False")
         cursor.execute(query, (facility, curr_time, curr_time, curr_date))
         rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
         # if rows returned means the facility is booked
         return len(rows) > 0
 
@@ -615,7 +639,7 @@ def get_user_timing(update, context):
 def get_available_timings(date, facility):
     available_timings = []
     start = timedelta(hours=10)#datetime.now().hour)
-    end = timedelta(hours=22)
+    end = timedelta(hours=23)
     booked_timings = get_booked_slots(facility, date)
     booked_timings.sort()
     print(booked_timings)
@@ -669,9 +693,3 @@ def terminate_input(update, context):
 if __name__ == '__main__':
     main()
 
-def recurring_action(update, context):
-    # Perform the desired action here
-    with connect_to_sql as conn:
-        cursor = conn.cursor()
-        cursor.execute()
-    context.bot.send_message(chat_id="YOUR_CHAT_ID", text="This is a recurring action!")
