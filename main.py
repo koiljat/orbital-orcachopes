@@ -424,7 +424,7 @@ def instant_booking(update, context, facility):
     
     booked=check_currently_booked(curr_date, curr_time, facility)
     
-    if not booked:
+    if not booked and (curr_time.hour >= 7 and curr_time.hour <= 23):
         keyboard = [
             [InlineKeyboardButton("Book", callback_data=f"Book")],
             [InlineKeyboardButton("Cancel", callback_data="Done")]
@@ -457,7 +457,7 @@ def handle_instant_booking(update, context):
     response_text = f"{context.chat_data['selected_facility']} selected\nDate: {context.chat_data['today_date']}\nStart: {start_time_str} \nEnd: {end_time_str} \nConfirm booking?"
     
     keyboard = [[InlineKeyboardButton("Yes", callback_data='Accept Booking'),InlineKeyboardButton("No", callback_data='Abort Booking')],
-    [InlineKeyboardButton("Back", callback_data='Instant Booking')]]
+    ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     print(start_time)
