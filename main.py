@@ -64,7 +64,7 @@ def start(update, context):
     def scheduled_reminder(context):
         '''This function will send a reminder to the user if they have a booking on the same day.'''
         username, chat_id = context.job.context.split(',')
-        hour = datetime.now().hour
+        hour = datetime.now(pytz.timezone('Asia/Singapore')).hour
         if hour % 10 == 0:
             hour = f'0{hour}'
         else:
@@ -80,7 +80,7 @@ def start(update, context):
         if text != '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n':
             context.bot.send_message(chat_id=chat_id, text=text)
 
-    now = datetime.now()
+    now = datetime.now(pytz.timezone('Asia/Singapore'))
     target_time = datetime(year=now.year, month=now.month, day=now.day, hour=6, minute=0)
     if now > target_time:
         target_time += timedelta(hours=now.hour)
@@ -217,7 +217,7 @@ def select_quick_booking_timing(update, context):
 
     keyboard = [[InlineKeyboardButton("Back", callback_data="Quick Booking")]]
 
-    current_slot = int(datetime.now().strftime("%H"))
+    current_slot = int(datetime.now(pytz.timezone('Asia/Singapore')).strftime("%H"))
     booked_slots = get_booked_slots(selected_facility, context.chat_data['today_date'])
     occupied_hours = []
     for slot in booked_slots:
@@ -291,7 +291,7 @@ def accept_booking(update, context):
         'username': context.chat_data['username'],
         'firstname': context.chat_data['first_name'],
         'lastname': context.chat_data['last_name'],
-        'datetime': datetime.now(),
+        'datetime': datetime.now(pytz.timezone('Asia/Singapore')),
         'date': context.chat_data['selected_date'],
         'start_time': context.chat_data['start_time'],
         'end_time': context.chat_data['end_time'],
@@ -638,7 +638,7 @@ def get_user_timing(update, context):
 
 def get_available_timings(date, facility):
     available_timings = []
-    start = timedelta(hours=10)#datetime.now().hour)
+    start = timedelta(hours=datetime.now(pytz.timezone('Asia/Singapore')).hour)
     end = timedelta(hours=23)
     booked_timings = get_booked_slots(facility, date)
     booked_timings.sort()
@@ -679,7 +679,7 @@ def handle_report_comment(update, context):
         with connect_to_sql() as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO Reports (username, datetime, remarks) VALUES (%s, %s, %s)",
-                (context.chat_data['username'] , datetime.now(), user_input))
+                (context.chat_data['username'] , datetime.now(pytz.timezone('Asia/Singapore')), user_input))
             conn.commit()
             update.message.reply_text("Your feedback has been submitted. Thank You.")
         
