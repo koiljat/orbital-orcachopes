@@ -18,6 +18,7 @@ CREATE TABLE Users (
   username VARCHAR(32) NOT NULL,
   first_name VARCHAR(32),
   last_name VARCHAR(32),
+  password VARCHAR(255) NOT NULL,
   PRIMARY KEY (username)
 );
 

@@ -4,6 +4,7 @@ from datetime import date, datetime
 from config import *
 from helper import *
 import pytz
+import getpass
 
 ### ConversationHandler States
 ADVANCE_BOOKING = 0
@@ -58,61 +59,89 @@ def main():
     updater.start_polling()
     updater.idle() #This keeps the bot alert for incoming updates
 
+
+def authenticate(username):
+    with connect_to_sql as conn:
+        cursor=conn.cursor()
+        query = "SELECT * FROM users WHERE username = %s"
+        cursor.execute(query, (username))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return user is not None
+
+def save_password(username,password):
+    with connect_to_sql as conn:
+        cursor = conn.cursor()
+        query = "INSERT INTO Users (username, password) VALUES (%s, %s)"
+        values = (username, password)
+        cursor.execute(query, values)
+        conn.commit()  
+
 def start(update, context):
     '''This function will start the bot and provide an interface for users to nagivate.'''
     #Collect user data
-    def scheduled_reminder(context):
-        '''This function will send a reminder to the user if they have a booking on the same day.'''
-        username, chat_id = context.job.context.split(',')
-        hour = datetime.now(pytz.timezone('Asia/Singapore')).hour
-        if hour % 10 == 0:
-            hour = f'0{hour}'
-        else:
-            hour = str(hour)
-        with connect_to_sql() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM Bookings WHERE username = %s AND cancelled!= TRUE  AND date = %s AND reminder = TRUE AND start_time = %s OR start_time = %s ", 
-                (username, str(date.today()), f'{hour}:00:00', f'{hour}:30:00'))
-            booking_data = cursor.fetchall()
-        text  = '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n'
-        for booking in booking_data:
-            text += f'{booking[1]} at {str(booking[5])}'
-        if text != '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n':
-            context.bot.send_message(chat_id=chat_id, text=text)
+    get_user_details(update,context)
 
-    now = datetime.now(pytz.timezone('Asia/Singapore'))
-    target_time = datetime(year=now.year, month=now.month, day=now.day, hour=6, minute=0)
-    if now > target_time:
-        target_time += timedelta(hours=now.hour)
-    delay = (target_time - now).total_seconds()
+    if authenticate(context.chat_data['username']):
+        def scheduled_reminder(context):
+            '''This function will send a reminder to the user if they have a booking on the same day.'''
+            username, chat_id = context.job.context.split(',')
+            hour = datetime.now(pytz.timezone('Asia/Singapore')).hour
+            if hour % 10 == 0:
+                hour = f'0{hour}'
+            else:
+                hour = str(hour)
+            with connect_to_sql() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM Bookings WHERE username = %s AND cancelled!= TRUE  AND date = %s AND reminder = TRUE AND start_time = %s OR start_time = %s ", 
+                    (username, str(date.today()), f'{hour}:00:00', f'{hour}:30:00'))
+                booking_data = cursor.fetchall()
+            text  = '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n'
+            for booking in booking_data:
+                text += f'{booking[1]} at {str(booking[5])}'
+            if text != '[REMINDER]\nYou have an upcoming booking.\nPlease cancel your booking if you are not able to make it. Use /check_booking to cancel.\n\n':
+                context.bot.send_message(chat_id=chat_id, text=text)
 
-    data = update.effective_user.username + ',' + str(update.effective_chat.id)
-    # Schedule the job to start running at 6 AM and repeat every hour
-    context.job_queue.run_repeating(scheduled_reminder, interval=3600, first=delay, context=data)
+        now = datetime.now(pytz.timezone('Asia/Singapore'))
+        target_time = datetime(year=now.year, month=now.month, day=now.day, hour=6, minute=0)
+        if now > target_time:
+            target_time += timedelta(hours=now.hour)
+        delay = (target_time - now).total_seconds()
 
-    #check if any facillity is passed as an argument via the qrcode
-    args = context.args
-    if args:
-        facility = args[0].replace('_', ' ').title()
-        instant_booking(update, context, facility)
-        return
+        data = update.effective_user.username + ',' + str(update.effective_chat.id)
+        # Schedule the job to start running at 6 AM and repeat every hour
+        context.job_queue.run_repeating(scheduled_reminder, interval=3600, first=delay, context=data)
 
-    #Create an InlineKeyboard for user to interact
-    keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
-    [InlineKeyboardButton("Check Booking", callback_data='Check Booking')],
-    [InlineKeyboardButton("Advanced Booking", callback_data='Advance Booking')],
-    [InlineKeyboardButton("Report Issue", callback_data='Report Issue')]]
+        #check if any facillity is passed as an argument via the qrcode
+        args = context.args
+        if args:
+            facility = args[0].replace('_', ' ').title()
+            instant_booking(update, context, facility)
+            return
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
+        #Create an InlineKeyboard for user to interact
+        keyboard = [[InlineKeyboardButton("Quick Booking", callback_data='Quick Booking')],
+        [InlineKeyboardButton("Check Booking", callback_data='Check Booking')],
+        [InlineKeyboardButton("Advanced Booking", callback_data='Advance Booking')],
+        [InlineKeyboardButton("Report Issue", callback_data='Report Issue')]]
 
-    text = """
-        Welcome to ORCAChopes, what would you like to do today?
-        \nYou can operate the bot by sending these commands:
-        \n/quick_booking - To book a slot for the day\n/check_bookings - To check you booked slot(s)\n/advance_booking - To book a slot up to 7 days in advance\n/report - To report any issues\n/end - To end the bot
-        """
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        text = """
+            Welcome to ORCAChopes, what would you like to do today?
+            \nYou can operate the bot by sending these commands:
+            \n/quick_booking - To book a slot for the day\n/check_bookings - To check you booked slot(s)\n/advance_booking - To book a slot up to 7 days in advance\n/report - To report any issues\n/end - To end the bot
+            """
+        
+        send_message(update, context, text, reply_markup) #We will abstract this since we will be using it multiple times later.
+    else:
+        text = "Please enter your password:"
+        context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        password= update.message.text
+        username = context.chat_data['username']
+        save_password(username,password)
     
-    send_message(update, context, text, reply_markup) #We will abstract this since we will be using it multiple times later.
-
 def end(update  , context):
     # Clear any ongoing conversations or active handlers
     context.dispatcher.clear_conversations()
