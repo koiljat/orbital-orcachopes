@@ -1,7 +1,8 @@
 from datetime import time, datetime, timedelta
+import re
 
 ### Helper Functions
-def convert_to_12_hour_format(hour):
+def convert_int_to_12_hour_format(hour):
     '''This function will help to convert an integer to 12H time string'''
     if hour < 0 or hour > 23:
         raise ValueError("Invalid hour: must be between 0 and 23")
@@ -22,6 +23,10 @@ def convert_to_12_hour_format(hour):
     formatted_time = f"{formatted_hour:02d}:00 {suffix}"
 
     return formatted_time
+
+def format_time_to_12_hour(time_obj):
+    time_str_12_hour = time_obj.strftime('%I:%M %p')
+    return time_str_12_hour
 
 def get_session_info(session):
     hour = int(session[8:]) + 6
@@ -58,15 +63,21 @@ def check_interval_overlap(start_time, end_time, intervals):
     return True
 
 def validate_user_input(user_input):
-    '''This function will make sure user enter their input according to the stated format'''
     try:
-        start_time, end_time = user_input.split('-')
-        start_time = datetime.strptime(start_time, '%H%M')
-        end_time = datetime.strptime(end_time, '%H%M')
+        pattern = r'^\d{4}-\d{4}$'
+
+        if not re.match(pattern, user_input):
+            raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /cancel")
+
+        start_time_str, end_time_str = user_input.split('-')
+
+        start_time = datetime.strptime(start_time_str, '%H%M')
+        end_time = datetime.strptime(end_time_str, '%H%M')
+
         if (start_time >= end_time) or (start_time.minute % 30 != 0 or end_time.minute % 30 != 0):
             raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /cancel")
-        else:
-            return True
+        return True
+
     except Exception as e:
         raise Exception("Invalid Input! \nPlease check your input and enter again: \n\nTo terminate booking, type /cancel")
 
@@ -74,3 +85,16 @@ def format_timedelta(tdelta):
     hours = tdelta // timedelta(hours=1)
     minutes = (tdelta % timedelta(hours=1)) // timedelta(minutes=1)
     return f"{hours:02d}:{minutes:02d}"
+
+def check_login_format(input_string):
+    pattern = r'^\s*\w+\s*,\s*[\w\-]+\s*$'
+    if re.match(pattern, input_string):
+        return True
+    else:
+        return False
+
+def get_current_timedelta():
+    '''This function will return the current time in timedelta format'''
+    current_time = datetime.now().time()
+    current_time_delta = timedelta(hours=current_time.hour, minutes=current_time.minute, seconds=current_time.second)
+    return current_time_delta
